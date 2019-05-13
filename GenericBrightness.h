@@ -43,6 +43,5 @@ public:
 	IOReturn SetBrightness (const char * method, OSObject * param);
 	IOReturn GetBrightnessLevels(void);
 	UInt32 GetValueFromArray(OSArray * array, UInt8 index);
-
-
+    
 };
