@@ -82,11 +82,3 @@ $ kextcache -i /
 
 On reboot, brightness should work.
 
-## Troubleshooting
-
-This was only testing on *one* computer and only with Mojave *10.14.4*. Your mileage may vary.
-
-If your brightness keys on your keyboard do not work, this is not related to this kext. Try to use the slider in system preferences to check if the kext work. For the keyboard keys, check: https://www.tonymacx86.com/threads/guide-patching-dsdt-ssdt-for-laptop-backlight-control.152659/ . The part for keyboard control is still applicable on Mojave.
-
-If the slider does not work in system preferences, there is a huge chance that the OEM ACPI methods do not work. You should try using a patched AppleBacklight kext.
-
