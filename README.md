@@ -8,21 +8,9 @@ On some laptops, the screen brightness is not controlled by Intel registers. In 
 
 To use it, you need a PNLF patch (to enable brightness handling in macOS) as well as a patch for you screen to be hooked to GenericBrightness. This is explained below.
 
-### Credit: com.ivik.driver.GenericBrightness
+### Author: [ivik](https://www.insanelymac.com/forum/profile/73374-ivik/)
 
-The original kext was retrieved from https://github.com/chris1111/GenericBrightness/ but seems to have an older history.
-
-Differences between the older version and this one are minimal. The xcode project has been updated for the latest version of xcode. A bug (linked to an uninitialized variable) causing a KP on Mojave 10.14.4 has been corrected.
-
-### Licensing information
-
-The original code does not have a licence... But the code is still freely available online and not distributed by the original author (as far as I can tell). The only change I made is a variable initialization, so I'm giving it away. As the code is fairly simple, I don't think anyone is keeping it a secret and I am redistributing it also.
-
-## Installation
-
-### Binaries
-
-You can either compile using Xcode 10.2 or download directly binary releases at: https://github.com/christophcharles/GenericBrightness/releases .
+The original kext was retrieved from https://github.com/chris1111/GenericBrightness/ and https://github.com/christophcharles/GenericBrightness/ but seems to have an older history, https://www.insanelymac.com/forum/topic/236835-updated-2012-genericbrightnesskext/.
 
 ### Configuration
 
@@ -69,16 +57,3 @@ Device (LCD)
     }
 }
 ```
-
-Once all this is done, put GenericBrightness.kext in /Library/Extensions/, put the correct permissions :  
-```sh
-$ chown -R root:wheel GenericBrightness.kext
-$ chmod -R 755 GenericBrightness.kext
-```
-And rebuild the kernel cache:  
-```sh
-$ kextcache -i /
-```
-
-On reboot, brightness should work.
-
