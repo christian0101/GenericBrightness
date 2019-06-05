@@ -5,7 +5,7 @@
 OSDefineMetaClassAndStructors(GenericBrightness, IOService)
 
 
-IOService* GenericBrightness::probe( IOService *provider, SInt32 *score )
+IOService* GenericBrightness::probe(IOService* provider, SInt32* score)
 {
     if (!super::probe(provider, score))
     {
@@ -15,7 +15,7 @@ IOService* GenericBrightness::probe( IOService *provider, SInt32 *score )
 	return this;
 }
 
-bool GenericBrightness::start( IOService * provider )
+bool GenericBrightness::start(IOService* provider)
 {	
 	
 	if(!provider || !super::start(provider))
@@ -27,70 +27,73 @@ bool GenericBrightness::start( IOService * provider )
 
 	provider->joinPMtree(this);
 	this->registerService(0);
-    
-	if (GetBrightnessLevels() == 0)
+
+
+	if (getACPIBrightnessLevels() == kIOReturnUnsupported)
     {
         return false;
     }
     
-	IOLog("Acpi brightness levels:%d, lowest brightness:%d, highest brightness:%d \n ", (int)brightnessIndex-2, (int)GetValueFromArray(brightnessTable,2), (int)GetValueFromArray(brightnessTable, brightnessIndex-1) );
+	IOLog("ACPI brightness levels:%d, lowest brightness:%d, highest brightness:%d \n ",
+          brightnessLevels - 2, getValueFromArray(*brightnessTable, 2), getValueFromArray(*brightnessTable, brightnessLevels - 1));
 		
 	BTWorkLoop = getWorkLoop();
-	BTPollTimer = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(IOTimerEventSource::Action, this, &GenericBrightness::BrightnessCheck));
+	BTPollTimer = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(IOTimerEventSource::Action, this, &GenericBrightness::brightnessCheck));
     
 	if (!BTWorkLoop || !BTPollTimer || (kIOReturnSuccess != BTWorkLoop->addEventSource(BTPollTimer))) 
 	{ 
-		IOLog("Timer not working\n"); return false;
+		IOLog("Timer not working\n");
+        return false;
 	}
 	
-	BrightnessCheck(); 
+	brightnessCheck(); 
 	return true;	
 }
 
-OSDictionary * getDisplayParams(IODisplay * display)
+OSDictionary& GenericBrightness::getDisplayParams(void)
 {
-    OSDictionary * params = NULL;
+    OSDictionary* params = NULL;
     
     if(display && (display->getProperty("IODisplayGUID") != 0))
     {
         params = OSDynamicCast(OSDictionary, display->getProperty("IODisplayParameters"));
     }
     
-    return params;
+    return *params;
 }
 
-IODisplay * GenericBrightness::getDisplay(void)
+IODisplay& GenericBrightness::getDisplay(void)
 {
-    IODisplay * displayRes = NULL;
-    OSIterator * displayList = NULL;
+    IODisplay* displayRes = NULL;
+    OSIterator* displayList = NULL;
     displayList = getMatchingServices(serviceMatching("IOBacklightDisplay"));
     
     if (displayList)
     {
         IOService *obj = NULL;
-        while( (obj = (IOService *) displayList->getNextObject()) )
+
+        while((obj = (IOService *) displayList->getNextObject()))
         {
-            displayRes = OSDynamicCast( IOBacklightDisplay, obj);
+            displayRes = OSDynamicCast(IOBacklightDisplay, obj);
         }
+
         displayList->release();
         displayList = NULL;
     }
     
-    return displayRes;
+    return *displayRes;
 }
 
-void GenericBrightness::BrightnessCheck(void)
+void GenericBrightness::brightnessCheck(void)
 {
-	
-	if (!displayParams || !display || display != getDisplay() || getDisplayParams(display)!=displayParams || !IODisplay::getIntegerRange(displayParams, gIODisplayBrightnessKey,
-													  &fCurrentBrightness, &fMinBrightness, &fMaxBrightness)) 
+    if (!displayParams || !display || display != &getDisplay() || &getDisplayParams() != displayParams
+        || !IODisplay::getIntegerRange(displayParams, gIODisplayBrightnessKey, &fCurrentBrightness, &fMinBrightness, &fMaxBrightness))
 	{
 		// IOLog("We still don't have brightness entry in ioreg... waiting...\n");
-        display = getDisplay();
-        
+        display = &getDisplay();
         if(display)
         {
-            displayParams = getDisplayParams(display);
+            displayParams = &getDisplayParams();
  		}
         
 		BTPollTimer->setTimeoutMS(100);
@@ -104,45 +107,44 @@ void GenericBrightness::BrightnessCheck(void)
 	{
 		fLastBrightness = fCurrentBrightness;
         
-		OSObject * param = OSNumber::withNumber(GetValueFromArray(
-            brightnessTable, ((fCurrentBrightness * (brightnessIndex - 3)) / fMaxBrightness) + 2), 8);
+		OSObject* param = OSNumber::withNumber(getValueFromArray(
+            *brightnessTable, ((fCurrentBrightness * (brightnessLevels - 3)) / fMaxBrightness) + 2), 8);
 
-		SetBrightness("_BCM", param);		
+		setBrightness("_BCM", param);
 	}				
 }
 
-IOReturn GenericBrightness::SetBrightness(const char * method, OSObject * param)
+IOReturn GenericBrightness::setBrightness(const char* method, OSObject* param)
 {
-	OSObject * acpi;
+	OSObject* acpi;
     
 	if (BrightnessMethods->evaluateObject(method, &acpi, &param, 1) != kIOReturnSuccess)
 	{
 		IOLog("%s: No object of method %s\n", this->getName(), method);
-		return 0;
+        return kIOReturnError;
 	}
     
-	return 1;
+	return kIOReturnSuccess;
 }
 
-IOReturn GenericBrightness::GetBrightnessLevels(void)
+IOReturn GenericBrightness::getACPIBrightnessLevels(void)
 {
-	OSObject * brightnessLevels;
+	OSObject* brightnessLevelsACPI;
 	
-	if (kIOReturnSuccess == BrightnessMethods->evaluateObject("_BCL", &brightnessLevels))
+	if (BrightnessMethods->evaluateObject("_BCL", &brightnessLevelsACPI) == kIOReturnSuccess)
     {
-		brightnessTable = OSDynamicCast(OSArray, brightnessLevels);
-		brightnessIndex = brightnessTable->getCount();
-		return brightnessIndex;
+		brightnessTable = OSDynamicCast(OSArray, brightnessLevelsACPI);
+		brightnessLevels = brightnessTable->getCount();
+        return kIOReturnSuccess;
 	}
-    else
-    {
-		return 0;
-	}
+
+    brightnessLevels = 0;
+    return kIOReturnUnsupported;
 }
 
-UInt32 GenericBrightness::GetValueFromArray(OSArray * array, UInt8 index)
+UInt32 GenericBrightness::getValueFromArray(const OSArray& array, const UInt8& index)
 {
-	OSObject * object = array->getObject(index);
+	OSObject* object = array.getObject(index);
     
 	if (object && (OSTypeIDInst(object) == OSTypeID(OSNumber)))
     {
@@ -157,14 +159,14 @@ UInt32 GenericBrightness::GetValueFromArray(OSArray * array, UInt8 index)
 }
 
 
-bool GenericBrightness::init(OSDictionary *properties)
+bool GenericBrightness::init(OSDictionary* properties)
 {    
 	return super::init(properties);
 }
 
-void GenericBrightness::stop( IOService * provider )
+void GenericBrightness::stop(IOService* provider)
 {	
-	if( BTPollTimer )
+	if(BTPollTimer)
     {
 		BTWorkLoop->removeEventSource(BTPollTimer);
 		BTPollTimer->release();
@@ -175,11 +177,10 @@ void GenericBrightness::stop( IOService * provider )
 		BTWorkLoop->release();
 	}
 	
-    super::stop( provider );
-
+    super::stop(provider);
 }
 
-void GenericBrightness::free ()
+void GenericBrightness::free()
 {
-	super::free ();
+	super::free();
 }
